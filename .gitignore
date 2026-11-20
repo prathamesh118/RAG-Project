@@ -1,0 +1,47 @@
+# Environment
+.env
+.env.*
+
+# Virtual Environment
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Streamlit
+.streamlit/secrets.toml
+
+# SQLite Database
+*.db
+*.sqlite3
+
+# ChromaDB
+chroma_db/
+
+# Uploads
+uploads/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Build
+dist/
+build/

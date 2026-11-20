@@ -1,0 +1,14 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.venv/
+.env
+.git
+.gitignore
+uploads/*
+!uploads/.gitkeep
+chroma_db/*
+!chroma_db/.gitkeep
+knowledge_copilot.db
+.pytest_cache/
