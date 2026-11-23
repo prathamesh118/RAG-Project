@@ -2,6 +2,7 @@
 ChromaDB Vector Store Manager
 """
 
+import re
 from typing import List
 
 try:
@@ -13,18 +14,35 @@ from langchain_core.documents import Document
 from rag.embeddings import EmbeddingModel
 
 
+def sanitize_collection_name(name: str) -> str:
+    """Ensure collection name meets ChromaDB requirements:
+    - 3 to 63 characters
+    - Only alphanumeric, underscores, hyphens
+    - Starts and ends with alphanumeric
+    """
+    if not name or not str(name).strip():
+        return "General"
+    cleaned = re.sub(r"[^a-zA-Z0-9._-]", "_", str(name).strip())
+    cleaned = re.sub(r"^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$", "", cleaned)
+    if len(cleaned) < 3:
+        cleaned = f"col_{cleaned}".rstrip("_")
+        if len(cleaned) < 3:
+            cleaned = "col_general"
+    return cleaned[:63]
+
+
 class VectorStore:
 
     def __init__(self, collection_name: str = "General"):
 
-        self.collection_name = collection_name
+        self.collection_name = sanitize_collection_name(collection_name)
 
         self.embedding_model = EmbeddingModel().get_embeddings()
 
         from config import settings
         self.vector_db = Chroma(
             persist_directory=settings.CHROMA_DB_PATH,
-            collection_name=collection_name,
+            collection_name=self.collection_name,
             embedding_function=self.embedding_model,
         )
 

@@ -1,5 +1,5 @@
 """
-Upload Page – ingest documents into the RAG system
+Upload Page – ingest documents and images with live status, percentage, and OCR into Knowledge Base
 """
 
 import os
@@ -14,12 +14,13 @@ st.set_page_config(
 
 # ── Shared CSS & Sidebar ──────────────────────────────────────────────────────
 from services.ui_helper import inject_custom_ui, render_sidebar, render_header
+from rag.vector_store import sanitize_collection_name
 
 inject_custom_ui()
 render_sidebar()
 
 # ── Header ────────────────────────────────────────────────────────────────────
-render_header("Upload Documents", "Index documents into vector collections for instant AI retrieval", "📤")
+render_header("Upload Documents & Images", "Index documents & image files into vector collections with automated OCR and AI visual analysis", "📤")
 
 # ── DB Init ───────────────────────────────────────────────────────────────────
 from database.db import Base, engine, SessionLocal
@@ -45,13 +46,13 @@ if "General" not in existing_cols:
 # ── Supported Formats Badges ──────────────────────────────────────────────────
 st.markdown("""
 <div style="display:flex; gap:0.6rem; flex-wrap:wrap; margin-bottom:1.5rem;">
-    <span style="background:rgba(99,102,241,0.12); color:#818cf8; border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:0.35rem 0.8rem; font-size:0.8rem; font-weight:600;">📄 PDF</span>
+    <span style="background:rgba(99,102,241,0.12); color:#818cf8; border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:0.35rem 0.8rem; font-size:0.8rem; font-weight:600;">📄 PDF (Text & Scans)</span>
+    <span style="background:rgba(16,185,129,0.12); color:#34d399; border:1px solid rgba(16,185,129,0.25); border-radius:8px; padding:0.35rem 0.8rem; font-size:0.8rem; font-weight:600;">🖼️ Images + Full OCR (PNG, JPG, WEBP, BMP)</span>
     <span style="background:rgba(99,102,241,0.12); color:#818cf8; border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:0.35rem 0.8rem; font-size:0.8rem; font-weight:600;">📝 DOCX</span>
     <span style="background:rgba(99,102,241,0.12); color:#818cf8; border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:0.35rem 0.8rem; font-size:0.8rem; font-weight:600;">📃 TXT</span>
     <span style="background:rgba(99,102,241,0.12); color:#818cf8; border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:0.35rem 0.8rem; font-size:0.8rem; font-weight:600;">📊 CSV</span>
     <span style="background:rgba(99,102,241,0.12); color:#818cf8; border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:0.35rem 0.8rem; font-size:0.8rem; font-weight:600;">⬇️ Markdown</span>
     <span style="background:rgba(99,102,241,0.12); color:#818cf8; border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:0.35rem 0.8rem; font-size:0.8rem; font-weight:600;">🔧 JSON</span>
-    <span style="background:rgba(16,185,129,0.12); color:#34d399; border:1px solid rgba(16,185,129,0.25); border-radius:8px; padding:0.35rem 0.8rem; font-size:0.8rem; font-weight:600;">🖼️ Images (PNG, JPG, WEBP, BMP)</span>
 </div>
 """, unsafe_allow_html=True)
 
@@ -71,16 +72,22 @@ if selected_option == "+ Create New Collection...":
         new_col_name = st.text_input(
             "New Collection Name",
             placeholder="e.g., LegalDocs, FinancialReports, HRManuals",
-            help="Enter a clean, descriptive name for the new collection.",
+            help="Enter a name. Spaces and symbols will automatically be converted for vector compatibility.",
         )
-    target_collection = new_col_name.strip()
+    raw_col = new_col_name.strip()
 else:
-    target_collection = selected_option.strip()
+    raw_col = selected_option.strip()
+
+# Always sanitize collection name so spaces or special characters never crash ChromaDB
+target_collection = sanitize_collection_name(raw_col) if raw_col else "General"
+
+if raw_col and raw_col != target_collection:
+    st.caption(f"ℹ️ Collection name formatted as **`{target_collection}`** for vector database compatibility.")
 
 # ── File Upload Section ───────────────────────────────────────────────────────
 st.markdown("<br>", unsafe_allow_html=True)
 uploaded_files = st.file_uploader(
-    "Choose files to index",
+    "Choose files or images to index",
     type=["pdf", "docx", "txt", "csv", "md", "markdown", "json", "png", "jpg", "jpeg", "webp", "bmp"],
     accept_multiple_files=True,
     help="Drag and drop or browse documents or images to add to the knowledge base.",
@@ -90,42 +97,65 @@ if uploaded_files:
     st.markdown(f"**Selected {len(uploaded_files)} file(s):**")
     for f in uploaded_files:
         size_kb = round(f.size / 1024, 1)
+        ext = os.path.splitext(f.name)[-1].lower()
+        icon = "🖼️" if ext in (".png", ".jpg", ".jpeg", ".webp", ".bmp") else "📄"
         st.markdown(f"""
         <div class="glass-card hover-lift" style="padding:0.75rem 1.2rem; margin:0.4rem 0; display:flex; align-items:center; gap:0.9rem;">
-            <span style="font-size:1.4rem;">📄</span>
+            <span style="font-size:1.4rem;">{icon}</span>
             <span style="color:#e2e8f0; font-size:0.88rem; font-weight:600;">{f.name}</span>
             <span style="color:#64748b; font-size:0.78rem; margin-left:auto; font-weight:500;">{size_kb} KB</span>
         </div>
         """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    if not target_collection:
-        st.warning("⚠️ Please specify or enter a valid collection name above before indexing.")
-    else:
-        st.info(f"👉 **Ready**: Click the button below to parse and index these **{len(uploaded_files)} file(s)** into collection **'{target_collection}'**.")
+    st.info(f"👉 **Ready to Index**: Click the button below to process **{len(uploaded_files)} file(s)** into collection **'{target_collection}'** with automated OCR and vector embedding.")
 
-    if st.button("🚀 Index Documents into Knowledge Base", type="primary", use_container_width=True):
-        if not target_collection:
-            st.error("⚠️ Please specify a collection name above before indexing.")
-            st.stop()
+    index_btn = st.button("🚀 Index Documents into Knowledge Base", type="primary", use_container_width=True)
 
+    if index_btn:
         from rag.ingestion import IngestionPipeline
 
-        with st.spinner(f"⚡ Initializing embedding pipeline for '{target_collection}'..."):
-            pipeline = IngestionPipeline(collection_name=target_collection)
+        status_container = st.container()
+        with status_container:
+            st.markdown("### ⚙️ Processing Status & Progress")
+            status_text = st.empty()
+            percent_badge = st.empty()
+            progress_bar = st.progress(0)
 
-        progress_bar = st.progress(0, text="Starting document ingestion...")
         results = []
+        try:
+            with st.spinner(f"⚡ Initializing embedding pipeline for '{target_collection}'..."):
+                pipeline = IngestionPipeline(collection_name=target_collection)
+        except Exception as e:
+            st.error(f"❌ Failed to initialize vector pipeline: {str(e)}")
+            st.stop()
+
+        total_files = len(uploaded_files)
 
         for i, file in enumerate(uploaded_files):
-            progress_bar.progress(
-                (i) / len(uploaded_files),
-                text=f"Processing {file.name} ({i+1}/{len(uploaded_files)})..."
-            )
+            file_progress_start = (i / total_files)
+            file_progress_weight = 1.0 / total_files
+
+            def update_progress(inner_pct: int, msg: str):
+                overall_pct = int((file_progress_start + (inner_pct / 100.0) * file_progress_weight) * 100)
+                overall_pct = min(max(overall_pct, 1), 99)
+                progress_bar.progress(overall_pct / 100.0)
+                percent_badge.markdown(
+                    f"<div style='font-size:1.1rem; font-weight:700; color:#818cf8;'>⏳ Progress: {overall_pct}%</div>",
+                    unsafe_allow_html=True,
+                )
+                status_text.markdown(f"**File {i+1}/{total_files} ({file.name})**: {msg}")
+
             try:
+                update_progress(10, "Reading file bytes...")
                 file.seek(0)
                 file_bytes = file.read()
-                page_count, chunk_count = pipeline.ingest_bytes(file_bytes, file.name)
+
+                page_count, chunk_count = pipeline.ingest_bytes(
+                    file_bytes=file_bytes,
+                    filename=file.name,
+                    progress_callback=update_progress,
+                )
 
                 # Record in DB
                 ext = os.path.splitext(file.name)[-1].upper().lstrip(".")
@@ -140,17 +170,34 @@ if uploaded_files:
                     user_id=st.session_state.user_id,
                 )
                 db.close()
-                results.append({"file": file.name, "pages": page_count, "chunks": chunk_count, "status": "✅ Indexed"})
+
+                results.append({
+                    "file": file.name,
+                    "pages": page_count,
+                    "chunks": chunk_count,
+                    "status": "✅ Indexed + OCR Complete",
+                })
 
             except Exception as e:
-                results.append({"file": file.name, "pages": 0, "chunks": 0, "status": f"❌ Error: {e}"})
+                results.append({
+                    "file": file.name,
+                    "pages": 0,
+                    "chunks": 0,
+                    "status": f"❌ Error: {str(e)}",
+                })
 
-        progress_bar.progress(1.0, text="Ingestion complete!")
+        progress_bar.progress(1.0)
+        percent_badge.markdown(
+            "<div style='font-size:1.2rem; font-weight:700; color:#34d399;'>✅ Progress: 100% Complete!</div>",
+            unsafe_allow_html=True,
+        )
+        status_text.markdown("✨ All documents and visual extractions have been indexed into the Knowledge Base!")
+
         all_ok = all("✅" in r["status"] for r in results)
         st.session_state["last_ingestion"] = {
             "collection": target_collection,
             "results": results,
-            "all_ok": all_ok
+            "all_ok": all_ok,
         }
         st.session_state.collection = target_collection
 
@@ -158,7 +205,7 @@ if uploaded_files:
     if "last_ingestion" in st.session_state and st.session_state["last_ingestion"]:
         last = st.session_state["last_ingestion"]
         st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown(f"### 📊 Ingestion Summary ({last['collection']})")
+        st.markdown(f"### 📊 Ingestion & OCR Summary ({last['collection']})")
 
         for r in last["results"]:
             is_ok = "✅" in r["status"]
@@ -168,7 +215,7 @@ if uploaded_files:
                 <span style="font-size:1.4rem;">{'✅' if is_ok else '⚠️'}</span>
                 <div style="flex:1;">
                     <p style="margin:0; color:#e2e8f0 !important; font-weight:600; font-size:0.9rem;">{r['file']}</p>
-                    <p style="margin:0.2rem 0 0; color:#64748b !important; font-size:0.78rem;">{r['pages']} page(s) · {r['chunks']} chunk(s) indexed</p>
+                    <p style="margin:0.2rem 0 0; color:#64748b !important; font-size:0.78rem;">{r['pages']} page(s) · {r['chunks']} chunk(s) indexed with vector embeddings</p>
                 </div>
                 <span style="color:{status_color}; font-weight:700; font-size:0.85rem;">{r['status']}</span>
             </div>
@@ -189,17 +236,17 @@ else:
         <div style="font-size:3rem; margin-bottom:1rem;">☁️</div>
         <h3 style="color:#818cf8 !important; margin:0 0 0.5rem; font-weight:700;">Drag & Drop or Browse Files Above</h3>
         <p style="color:#64748b !important; margin:0; font-size:0.88rem;">
-            Supports PDF, Word (DOCX), Images (PNG, JPG, WEBP, BMP), Spreadsheets (CSV), Markdown (MD), and JSON.
+            Supports PDF (text & scans), Images with OCR (PNG, JPG, WEBP, BMP), Word (DOCX), Spreadsheets (CSV), Markdown (MD), and JSON.
         </p>
     </div>
     """, unsafe_allow_html=True)
 
 # ── Tips ──────────────────────────────────────────────────────────────────────
 st.markdown("<br>", unsafe_allow_html=True)
-with st.expander("💡 Ingestion Best Practices"):
+with st.expander("💡 Ingestion & OCR Best Practices"):
     st.markdown("""
-    - **Use focused collection names**: Group documents by subject matter (e.g. `Finance_2026`, `Product_Docs`, `Contracts`).
-    - **Document quality**: Clean text files and machine-readable PDFs produce the highest retrieval precision.
-    - **Chunk tuning**: For granular question-answering, smaller chunk sizes (500–800) work best; for high-level summaries, larger chunks (1000–1500) provide broader context.
-    - **Incremental updates**: Re-uploading a document adds new chunks without disrupting existing chat sessions.
+    - **Image & Scanned Documents**: PNG, JPG, and scanned PDFs automatically run through Gemini Vision OCR to transcribe all visible text, diagrams, and tables.
+    - **Collection Names**: Spaces and special characters are automatically sanitized for ChromaDB vector store compatibility (e.g., `image docs` $\\rightarrow$ `image_docs`).
+    - **Granular Chunks**: Chunking splits documents and visual OCR analyses into semantic passages with embeddings for fast, accurate retrieval in Chat.
+    - **Instant Availability**: Once ingestion reaches 100%, documents are immediately searchable in **Chat** and visible in **Knowledge Base**.
     """)

@@ -42,6 +42,22 @@ def create_document(
     total_pages: int = 0,
     user_id: int = 1,
 ) -> Document:
+    # If the document already exists in this collection, update its metadata
+    existing = (
+        db.query(Document)
+        .filter(Document.filename == filename, Document.collection == collection)
+        .first()
+    )
+    if existing:
+        existing.document_type = document_type
+        existing.total_chunks = total_chunks
+        existing.total_pages = total_pages
+        existing.upload_time = datetime.utcnow()
+        existing.status = "Indexed"
+        db.commit()
+        db.refresh(existing)
+        return existing
+
     doc = Document(
         filename=filename,
         document_type=document_type,
