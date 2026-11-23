@@ -51,6 +51,7 @@ st.markdown("""
     <span style="background:rgba(99,102,241,0.12); color:#818cf8; border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:0.35rem 0.8rem; font-size:0.8rem; font-weight:600;">📊 CSV</span>
     <span style="background:rgba(99,102,241,0.12); color:#818cf8; border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:0.35rem 0.8rem; font-size:0.8rem; font-weight:600;">⬇️ Markdown</span>
     <span style="background:rgba(99,102,241,0.12); color:#818cf8; border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:0.35rem 0.8rem; font-size:0.8rem; font-weight:600;">🔧 JSON</span>
+    <span style="background:rgba(16,185,129,0.12); color:#34d399; border:1px solid rgba(16,185,129,0.25); border-radius:8px; padding:0.35rem 0.8rem; font-size:0.8rem; font-weight:600;">🖼️ Images (PNG, JPG, WEBP, BMP)</span>
 </div>
 """, unsafe_allow_html=True)
 
@@ -80,9 +81,9 @@ else:
 st.markdown("<br>", unsafe_allow_html=True)
 uploaded_files = st.file_uploader(
     "Choose files to index",
-    type=["pdf", "docx", "txt", "csv", "md", "markdown", "json"],
+    type=["pdf", "docx", "txt", "csv", "md", "markdown", "json", "png", "jpg", "jpeg", "webp", "bmp"],
     accept_multiple_files=True,
-    help="Drag and drop or browse files to add to the knowledge base.",
+    help="Drag and drop or browse documents or images to add to the knowledge base.",
 )
 
 if uploaded_files:
@@ -188,7 +189,7 @@ else:
         <div style="font-size:3rem; margin-bottom:1rem;">☁️</div>
         <h3 style="color:#818cf8 !important; margin:0 0 0.5rem; font-weight:700;">Drag & Drop or Browse Files Above</h3>
         <p style="color:#64748b !important; margin:0; font-size:0.88rem;">
-            Supports PDF, Word (DOCX), Plain Text (TXT), Spreadsheets (CSV), Markdown (MD), and JSON.
+            Supports PDF, Word (DOCX), Images (PNG, JPG, WEBP, BMP), Spreadsheets (CSV), Markdown (MD), and JSON.
         </p>
     </div>
     """, unsafe_allow_html=True)

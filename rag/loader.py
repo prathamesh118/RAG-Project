@@ -36,5 +36,9 @@ def load_document(file_path: str) -> List[Document]:
         from services.json_loader import load_json
         return load_json(file_path)
 
+    elif ext in (".png", ".jpg", ".jpeg", ".webp", ".bmp"):
+        from services.image_loader import load_image
+        return load_image(file_path)
+
     else:
         raise ValueError(f"Unsupported file type: {ext}")

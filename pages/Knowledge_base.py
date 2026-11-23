@@ -95,6 +95,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 EXT_ICONS = {
     "PDF": "📄", "DOCX": "📝", "TXT": "📃", "CSV": "📊",
     "MD": "⬇️", "MARKDOWN": "⬇️", "JSON": "🔧",
+    "PNG": "🖼️", "JPG": "🖼️", "JPEG": "🖼️", "WEBP": "🖼️", "BMP": "🖼️",
 }
 
 for doc in filtered:
